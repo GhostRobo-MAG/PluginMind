@@ -1,7 +1,7 @@
 # PluginMind – Production-Ready AI SaaS Full Stack Boilerplate
 ### 🚀 Build & Launch AI SaaS Faster
 
-PluginMind is a **production-ready backend boilerplate** for AI-powered SaaS products.  
+PluginMind is a **production-ready Full Stack boilerplate** for AI-powered SaaS products.  
 It gives you a secure, extensible foundation with **authentication, database integration, plugin-style AI registry, CI/CD, and 100+ automated tests** – everything you need to launch an AI product fast.
 
 ## 🧠 Background 
