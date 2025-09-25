@@ -1,0 +1,333 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  :root {
+    /* Terminal theme as default (dark) */
+    --background: 210 21% 6%;     /* #0d1117 */
+    --foreground: 214 15% 82%;    /* #c9d1d9 */
+    --card: 215 19% 11%;          /* #161b22 */
+    --card-foreground: 214 15% 82%; /* #c9d1d9 */
+    --popover: 215 19% 11%;       /* #161b22 */
+    --popover-foreground: 214 15% 82%; /* #c9d1d9 */
+    --primary: 25 76% 58%;        /* #d57455 */
+    --primary-foreground: 210 21% 6%; /* #0d1117 */
+    --secondary: 215 14% 16%;     /* #21262d */
+    --secondary-foreground: 214 15% 82%; /* #c9d1d9 */
+    --muted: 215 14% 16%;         /* #21262d */
+    --muted-foreground: 218 10% 56%; /* #7d8590 */
+    --accent: 32 91% 42%;         /* #d97706 */
+    --accent-foreground: 210 21% 6%; /* #0d1117 */
+    --destructive: 4 90% 63%;     /* #f85149 */
+    --destructive-foreground: 214 15% 82%; /* #c9d1d9 */
+    --border: 215 13% 20%;        /* #30363d */
+    --input: 215 14% 16%;         /* #21262d */
+    --ring: 25 76% 58%;           /* #d57455 */
+    --radius: 0.5rem;
+
+    /* Terminal theme variables */
+    --terminal-bg-primary: 210 21% 6%;     /* #0d1117 */
+    --terminal-bg-secondary: 215 19% 11%;  /* #161b22 */
+    --terminal-bg-tertiary: 215 14% 16%;   /* #21262d */
+    --terminal-border-primary: 215 13% 20%; /* #30363d */
+    --terminal-border-secondary: 215 14% 16%; /* #21262d */
+    --terminal-text-primary: 214 15% 82%;   /* #c9d1d9 */
+    --terminal-text-secondary: 218 10% 56%; /* #7d8590 */
+    --terminal-text-accent: 25 76% 58%;     /* #d57455 */
+    --terminal-text-success: 133 41% 56%;   /* #3fb950 */
+    --terminal-text-warning: 25 95% 53%;    /* #f97316 */
+    --terminal-text-error: 4 90% 63%;       /* #f85149 */
+    --terminal-text-info: 208 100% 82%;     /* #a5d6ff */
+    --terminal-accent: 32 91% 42%;          /* #d97706 */
+  }
+
+  .light {
+    /* Light theme with proper terminal contrast */
+    --background: 0 0% 98%;
+    --foreground: 240 10% 3.9%;
+    --card: 0 0% 100%;
+    --card-foreground: 240 10% 3.9%;
+    --popover: 0 0% 100%;
+    --popover-foreground: 240 10% 3.9%;
+    --primary: 32 91% 42%;        /* Orange for light mode */
+    --primary-foreground: 0 0% 98%;
+    --secondary: 240 4.8% 95.9%;
+    --secondary-foreground: 240 5.9% 10%;
+    --muted: 240 4.8% 95.9%;
+    --muted-foreground: 240 3.8% 46.1%;
+    --accent: 25 76% 45%;          /* Darker orange for light mode */
+    --accent-foreground: 0 0% 98%;
+    --destructive: 0 84.2% 60.2%;
+    --destructive-foreground: 0 0% 98%;
+    --border: 240 5.9% 90%;
+    --input: 240 5.9% 90%;
+    --ring: 32 91% 42%;
+
+    /* Light mode terminal variables */
+    --terminal-bg-primary: 0 0% 98%;      /* Light background */
+    --terminal-bg-secondary: 240 4.8% 95.9%; /* Light secondary */
+    --terminal-bg-tertiary: 240 5.9% 90%;    /* Light tertiary */
+    --terminal-border-primary: 240 5.9% 80%; /* Visible borders */
+    --terminal-border-secondary: 240 5.9% 85%;
+    --terminal-text-primary: 240 10% 3.9%;   /* Dark text */
+    --terminal-text-secondary: 240 3.8% 46.1%; /* Muted text */
+    --terminal-text-accent: 32 91% 42%;      /* Orange accent */
+    --terminal-text-success: 133 41% 45%;    /* Green for light */
+    --terminal-text-warning: 25 95% 43%;     /* Orange warning */
+    --terminal-text-error: 0 84.2% 50.2%;   /* Red error */
+    --terminal-text-info: 208 100% 47%;     /* Blue info */
+    --terminal-accent: 32 91% 42%;           /* Orange accent */
+  }
+}
+
+@layer base {
+  * {
+    @apply border-border;
+  }
+
+  body {
+    @apply bg-background text-foreground;
+    font-family: 'Monaco', 'Menlo', 'Ubuntu Mono', 'Courier New', monospace;
+    line-height: 1.4;
+    font-feature-settings:
+      "rlig" 1,
+      "calt" 1;
+  }
+
+  /* All elements use terminal monospace font */
+  *, h1, h2, h3, h4, h5, h6 {
+    font-family: 'Monaco', 'Menlo', 'Ubuntu Mono', 'Courier New', monospace;
+  }
+
+  /* Headings maintain proper weights */
+  h1, h2, h3, h4, h5, h6 {
+    font-weight: 600;
+  }
+}
+
+/* Section background variations for visual hierarchy */
+@layer components {
+  .section-primary {
+    @apply bg-background;
+  }
+
+  .section-secondary {
+    @apply bg-secondary/30 border-y border-border/50;
+    /* Light mode enhancement */
+    background-image: linear-gradient(135deg, transparent 0%, hsl(var(--secondary)) 2%, transparent 100%);
+  }
+
+  .section-tertiary {
+    @apply bg-muted/40 border-y border-border/60;
+    background-image: radial-gradient(circle at 50% 50%, hsl(var(--muted)) 0%, transparent 50%);
+  }
+
+  /* Light theme specific enhancements - maximum contrast */
+  .light .section-secondary {
+    @apply border-slate-400/80;
+    background: linear-gradient(135deg, #f8fafc 0%, #f1f5f9 50%, #e2e8f0 100%);
+    background-image:
+      linear-gradient(135deg, transparent 0%, hsl(240 4.8% 90%) 8%, transparent 100%),
+      linear-gradient(45deg, rgba(148, 163, 184, 0.08) 25%, transparent 25%);
+    box-shadow:
+      inset 0 1px 0 0 rgba(255, 255, 255, 0.5),
+      0 1px 3px 0 rgba(0, 0, 0, 0.08);
+  }
+
+  .light .section-tertiary {
+    @apply border-slate-400;
+    background: linear-gradient(135deg, #f1f5f9 0%, #e2e8f0 50%, #cbd5e1 100%);
+    background-image:
+      radial-gradient(circle at 20% 20%, hsl(240 4.8% 85%) 0%, transparent 50%),
+      radial-gradient(circle at 80% 80%, hsl(240 4.8% 87%) 0%, transparent 50%),
+      linear-gradient(90deg, rgba(148, 163, 184, 0.12) 50%, transparent 50%);
+    box-shadow:
+      inset 0 1px 0 0 rgba(255, 255, 255, 0.6),
+      inset 0 -1px 0 0 rgba(0, 0, 0, 0.08),
+      0 2px 6px 0 rgba(0, 0, 0, 0.12);
+  }
+}
+
+/* Terminal theme custom components */
+@layer components {
+  .terminal-window {
+    @apply bg-card border border-border rounded-lg overflow-hidden;
+    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.4);
+  }
+
+  /* Mobile terminal window adjustments */
+  @media (max-width: 640px) {
+    .terminal-window {
+      margin: 0 auto;
+      max-width: calc(100vw - 2rem);
+      overflow-x: hidden;
+    }
+  }
+
+  .terminal-header {
+    @apply bg-secondary border-b border-border px-4 py-3 flex items-center gap-2;
+  }
+
+  .terminal-dots {
+    @apply flex gap-2;
+  }
+
+  .terminal-dot {
+    @apply w-3 h-3 rounded-full;
+  }
+
+  .terminal-dot-red {
+    @apply bg-red-500;
+  }
+
+  .terminal-dot-yellow {
+    @apply bg-yellow-500;
+  }
+
+  .terminal-dot-green {
+    @apply bg-green-500;
+  }
+
+  .terminal-content {
+    @apply p-4 font-mono text-sm;
+    font-family: 'Monaco', 'Menlo', 'Ubuntu Mono', 'Courier New', monospace;
+  }
+
+  /* Mobile terminal content adjustments */
+  @media (max-width: 640px) {
+    .terminal-content {
+      @apply p-3 text-xs;
+    }
+
+    .terminal-content > div {
+      @apply text-center;
+    }
+
+    .terminal-content .space-y-2 > div {
+      font-size: clamp(0.6rem, 2.5vw, 0.75rem);
+      @apply text-center px-2;
+    }
+  }
+
+  @media (max-width: 375px) {
+    .terminal-content .space-y-2 > div {
+      font-size: clamp(0.5rem, 2vw, 0.65rem);
+    }
+  }
+
+  .ascii-art {
+    @apply text-primary font-mono text-xs leading-tight whitespace-pre overflow-x-auto;
+    font-family: 'Monaco', 'Menlo', 'Ubuntu Mono', 'Courier New', monospace;
+  }
+
+  /* Mobile-specific ASCII art improvements */
+  @media (max-width: 640px) {
+    .ascii-art {
+      font-size: clamp(0.2rem, 1.5vw, 0.4rem);
+      line-height: 0.9;
+      transform: scale(0.65);
+      transform-origin: center center;
+      width: fit-content;
+      margin: 0 auto;
+      text-align: center;
+      overflow: visible;
+      white-space: pre;
+    }
+  }
+
+  @media (max-width: 375px) {
+    .ascii-art {
+      font-size: clamp(0.15rem, 1.2vw, 0.35rem);
+      transform: scale(0.55);
+    }
+  }
+
+  .terminal-prompt {
+    @apply flex items-center gap-2 text-muted-foreground;
+  }
+
+  .terminal-prompt::before {
+    content: '$';
+    @apply text-primary;
+  }
+
+  /* Mobile terminal prompt adjustments */
+  @media (max-width: 640px) {
+    .terminal-prompt {
+      @apply flex-wrap gap-1 text-xs justify-center;
+      font-size: clamp(0.55rem, 2.2vw, 0.7rem);
+      max-width: 100%;
+      overflow-wrap: break-word;
+      word-break: break-all;
+    }
+
+    /* Override text-left for mobile */
+    .space-y-2.text-left {
+      @apply text-center;
+    }
+
+    .terminal-prompt > span {
+      @apply text-center;
+    }
+  }
+
+  @media (max-width: 375px) {
+    .terminal-prompt {
+      font-size: clamp(0.45rem, 1.8vw, 0.6rem);
+      gap: 0.125rem;
+    }
+  }
+
+  .code-block {
+    @apply bg-muted border border-border rounded-md p-4 font-mono text-sm overflow-x-auto;
+  }
+
+  .status-indicator {
+    @apply inline-flex items-center gap-1;
+  }
+
+  .status-dot {
+    @apply w-2 h-2 rounded-full bg-green-500 animate-pulse;
+  }
+
+  /* Gentle spinning animation for tech icons */
+  @keyframes slow-spin {
+    from { transform: rotate(0deg); }
+    to { transform: rotate(360deg); }
+  }
+
+  .spin-logo {
+    animation: slow-spin 12s linear infinite;
+    transform-origin: center;
+    will-change: transform;
+  }
+
+  /* Auto-scrolling marquee for tech icons */
+  @keyframes marquee-scroll {
+    0% { transform: translateX(0); }
+    100% { transform: translateX(-50%); }
+  }
+
+  .marquee {
+    overflow: hidden;
+    position: relative;
+    /* optional soft edges */
+    -webkit-mask-image: linear-gradient(to right, transparent, black 8%, black 92%, transparent);
+            mask-image: linear-gradient(to right, transparent, black 8%, black 92%, transparent);
+  }
+
+  .marquee-track {
+    display: flex;
+    align-items: center;
+    gap: 3rem; /* increased spacing between icons */
+    width: max-content; /* ensure track fits content */
+    animation: marquee-scroll 28s linear infinite;
+    will-change: transform;
+  }
+
+  /* Pause scrolling on hover */
+  .marquee:hover .marquee-track {
+    animation-play-state: paused;
+  }
+}

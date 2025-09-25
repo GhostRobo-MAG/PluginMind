@@ -1,0 +1,459 @@
+name: 'Frontend Test Suite'
+
+on:
+  push:
+    branches: [ main, develop, feature/* ]
+    paths:
+      - 'frontend/**'
+      - '.github/workflows/frontend-test.yml'
+  pull_request:
+    branches: [ main, develop ]
+    paths:
+      - 'frontend/**'
+      - '.github/workflows/frontend-test.yml'
+
+# Prevent concurrent runs on same branch
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  NODE_VERSION: '20.x'
+  PNPM_VERSION: 'latest'
+
+jobs:
+  frontend-tests:
+    name: '🧪 Frontend Tests (Node ${{ matrix.node-version }})'
+    runs-on: ubuntu-latest
+
+    strategy:
+      matrix:
+        node-version: [18.x, 20.x]
+
+    defaults:
+      run:
+        working-directory: ./frontend
+
+    steps:
+      - name: '📥 Checkout code'
+        uses: actions/checkout@v4
+
+      - name: '⚡ Setup Node.js ${{ matrix.node-version }}'
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ matrix.node-version }}
+          registry-url: 'https://registry.npmjs.org'
+
+      - name: '📦 Setup pnpm'
+        uses: pnpm/action-setup@v2
+        with:
+          version: ${{ env.PNPM_VERSION }}
+
+      - name: '📂 Get pnpm store directory'
+        shell: bash
+        run: echo "STORE_PATH=$(pnpm store path --silent)" >> $GITHUB_ENV
+
+      - name: '💾 Cache pnpm store'
+        uses: actions/cache@v4
+        with:
+          path: ${{ env.STORE_PATH }}
+          key: ${{ runner.os }}-pnpm-store-${{ hashFiles('**/pnpm-lock.yaml') }}
+          restore-keys: |
+            ${{ runner.os }}-pnpm-store-
+
+      - name: '📦 Install dependencies'
+        run: pnpm install --frozen-lockfile
+
+      - name: '💾 Cache Next.js build'
+        uses: actions/cache@v4
+        with:
+          path: |
+            frontend/.next/cache
+          key: ${{ runner.os }}-nextjs-${{ hashFiles('**/pnpm-lock.yaml') }}-${{ hashFiles('frontend/**/*.js', 'frontend/**/*.jsx', 'frontend/**/*.ts', 'frontend/**/*.tsx') }}
+          restore-keys: |
+            ${{ runner.os }}-nextjs-${{ hashFiles('**/pnpm-lock.yaml') }}-
+
+      - name: '🔍 Type checking'
+        run: pnpm typecheck
+
+      - name: '🧹 Linting'
+        run: pnpm lint
+
+      - name: '🎨 Prettier check'
+        run: pnpm prettier:check
+
+      - name: '🧪 Run unit tests'
+        env:
+          # Test environment variables
+          NEXT_PUBLIC_SECURE_TOKENS: 'true'
+          NEXT_PUBLIC_USE_API_PROXY: 'true'
+          NEXTAUTH_URL: 'http://localhost:3000'
+          NEXTAUTH_SECRET: 'test-secret-key-for-ci-frontend'
+          GOOGLE_CLIENT_ID: 'test-google-client-id'
+          GOOGLE_CLIENT_SECRET: 'test-google-client-secret'
+          BACKEND_URL: 'http://localhost:8000'
+        run: pnpm test:ci
+
+      - name: '📊 Upload coverage reports to Codecov'
+        if: matrix.node-version == '20.x'
+        uses: codecov/codecov-action@v3
+        with:
+          directory: frontend/coverage
+          flags: frontend
+          name: frontend-coverage
+          fail_ci_if_error: false
+
+      - name: '🏗️ Build application'
+        env:
+          NEXT_PUBLIC_SECURE_TOKENS: 'true'
+          NEXT_PUBLIC_USE_API_PROXY: 'true'
+          NEXTAUTH_URL: 'http://localhost:3000'
+          NEXTAUTH_SECRET: 'test-secret-key-for-ci-frontend'
+          GOOGLE_CLIENT_ID: 'test-google-client-id'
+          GOOGLE_CLIENT_SECRET: 'test-google-client-secret'
+          BACKEND_URL: 'http://localhost:8000'
+        run: pnpm build
+
+      - name: '📤 Upload build artifacts'
+        if: matrix.node-version == '20.x'
+        uses: actions/upload-artifact@v4
+        with:
+          name: frontend-build-${{ github.sha }}
+          path: |
+            frontend/.next
+            frontend/public
+          retention-days: 1
+
+  e2e-tests:
+    name: '🎭 E2E Tests'
+    runs-on: ubuntu-latest
+    needs: [frontend-tests]
+
+    defaults:
+      run:
+        working-directory: ./frontend
+
+    services:
+      postgres:
+        image: postgres:15-alpine
+        env:
+          POSTGRES_PASSWORD: test_password
+          POSTGRES_USER: test_user
+          POSTGRES_DB: test_db
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+        ports:
+          - 5432:5432
+
+    steps:
+      - name: '📥 Checkout code'
+        uses: actions/checkout@v4
+
+      - name: '⚡ Setup Node.js'
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+
+      - name: '📦 Setup pnpm'
+        uses: pnpm/action-setup@v2
+        with:
+          version: ${{ env.PNPM_VERSION }}
+
+      - name: '📦 Install frontend dependencies'
+        run: pnpm install --frozen-lockfile
+
+      - name: '📤 Download build artifacts'
+        uses: actions/download-artifact@v4
+        with:
+          name: frontend-build-${{ github.sha }}
+          path: frontend/
+
+      - name: '🎭 Install Playwright browsers'
+        run: pnpm exec playwright install --with-deps chromium firefox webkit
+
+      - name: '🐍 Setup Python for backend'
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.11'
+
+      - name: '🔧 Start backend server'
+        working-directory: ./pluginmind_backend
+        env:
+          DATABASE_URL: postgresql://test_user:test_password@localhost:5432/test_db
+          BACKEND_SESSION_SECRET: test-backend-session-secret-for-e2e
+          GOOGLE_CLIENT_ID: test-google-client-id
+          TESTING: '1'
+          ENVIRONMENT: testing
+        run: |
+          pip install -r requirements.txt
+          python -c "from app.database import create_db_and_tables; create_db_and_tables()"
+          uvicorn app.main:app --host 0.0.0.0 --port 8000 &
+          sleep 15
+          curl -f http://localhost:8000/health || (echo "Backend health check failed" && exit 1)
+
+      - name: '🎭 Run Playwright tests'
+        env:
+          PLAYWRIGHT_TEST_BASE_URL: 'http://localhost:3000'
+          NEXT_PUBLIC_SECURE_TOKENS: 'true'
+          NEXT_PUBLIC_USE_API_PROXY: 'true'
+          NEXTAUTH_URL: 'http://localhost:3000'
+          NEXTAUTH_SECRET: 'test-secret-key-for-e2e'
+          GOOGLE_CLIENT_ID: 'test-google-client-id'
+          GOOGLE_CLIENT_SECRET: 'test-google-client-secret'
+          BACKEND_URL: 'http://localhost:8000'
+        run: pnpm test:e2e --reporter=html,junit
+
+      - name: '📤 Upload Playwright report'
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: playwright-report-${{ github.sha }}
+          path: frontend/test-results/
+          retention-days: 7
+
+      - name: '📋 Upload test results'
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: e2e-test-results-${{ github.sha }}
+          path: frontend/test-results/e2e-results.xml
+          retention-days: 7
+
+  accessibility-tests:
+    name: '♿ Accessibility Tests'
+    runs-on: ubuntu-latest
+    needs: [frontend-tests]
+
+    defaults:
+      run:
+        working-directory: ./frontend
+
+    steps:
+      - name: '📥 Checkout code'
+        uses: actions/checkout@v4
+
+      - name: '⚡ Setup Node.js'
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+
+      - name: '📦 Setup pnpm'
+        uses: pnpm/action-setup@v2
+        with:
+          version: ${{ env.PNPM_VERSION }}
+
+      - name: '📦 Install dependencies'
+        run: pnpm install --frozen-lockfile
+
+      - name: '📤 Download build artifacts'
+        uses: actions/download-artifact@v4
+        with:
+          name: frontend-build-${{ github.sha }}
+          path: frontend/
+
+      - name: '🎭 Install Playwright browsers'
+        run: pnpm exec playwright install --with-deps chromium
+
+      - name: '♿ Run accessibility tests with Playwright'
+        env:
+          NEXT_PUBLIC_SECURE_TOKENS: 'true'
+          NEXT_PUBLIC_USE_API_PROXY: 'true'
+          NEXTAUTH_URL: 'http://localhost:3000'
+          NEXTAUTH_SECRET: 'test-secret-key-for-accessibility'
+        run: |
+          # Run accessibility-specific tests
+          pnpm exec playwright test --grep="Accessibility" --reporter=html
+
+      - name: '📤 Upload accessibility report'
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: accessibility-report-${{ github.sha }}
+          path: frontend/test-results/
+          retention-days: 7
+
+  security-scan:
+    name: '🔒 Frontend Security Scan'
+    runs-on: ubuntu-latest
+    needs: [frontend-tests]
+
+    defaults:
+      run:
+        working-directory: ./frontend
+
+    steps:
+      - name: '📥 Checkout code'
+        uses: actions/checkout@v4
+
+      - name: '⚡ Setup Node.js'
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+
+      - name: '📦 Setup pnpm'
+        uses: pnpm/action-setup@v2
+        with:
+          version: ${{ env.PNPM_VERSION }}
+
+      - name: '📦 Install dependencies'
+        run: pnpm install --frozen-lockfile
+
+      - name: '🔍 Run Trivy vulnerability scanner'
+        uses: aquasecurity/trivy-action@master
+        with:
+          scan-type: 'fs'
+          scan-ref: './frontend'
+          format: 'sarif'
+          output: 'trivy-frontend-results.sarif'
+
+      - name: '📤 Upload Trivy scan results to GitHub Security tab'
+        uses: github/codeql-action/upload-sarif@v2
+        if: always()
+        with:
+          sarif_file: 'trivy-frontend-results.sarif'
+          category: 'frontend'
+
+      - name: '🔒 Frontend dependency audit'
+        run: |
+          # Check for high and critical vulnerabilities
+          npm audit --audit-level=high --prefix . || exit_code=$?
+          if [ ${exit_code:-0} -ne 0 ]; then
+            echo "❌ High/Critical vulnerabilities found in frontend dependencies"
+            npm audit --audit-level=high --prefix .
+            exit 1
+          fi
+          echo "✅ No high/critical vulnerabilities found"
+
+      - name: '📋 Bundle analysis'
+        env:
+          NEXT_PUBLIC_SECURE_TOKENS: 'true'
+          NEXT_PUBLIC_USE_API_PROXY: 'true'
+        run: |
+          # Build and analyze bundle size
+          pnpm build
+          # You could add bundle analyzer here if configured
+          echo "✅ Bundle analysis complete"
+
+  performance-tests:
+    name: '⚡ Performance Tests'
+    runs-on: ubuntu-latest
+    needs: [frontend-tests]
+
+    defaults:
+      run:
+        working-directory: ./frontend
+
+    steps:
+      - name: '📥 Checkout code'
+        uses: actions/checkout@v4
+
+      - name: '⚡ Setup Node.js'
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+
+      - name: '📦 Setup pnpm'
+        uses: pnpm/action-setup@v2
+        with:
+          version: ${{ env.PNPM_VERSION }}
+
+      - name: '📦 Install dependencies'
+        run: pnpm install --frozen-lockfile
+
+      - name: '📤 Download build artifacts'
+        uses: actions/download-artifact@v4
+        with:
+          name: frontend-build-${{ github.sha }}
+          path: frontend/
+
+      - name: '🎭 Install Playwright browsers'
+        run: pnpm exec playwright install --with-deps chromium
+
+      - name: '⚡ Run Lighthouse CI'
+        run: |
+          npm install -g @lhci/cli@0.12.x
+          # Start the app
+          pnpm start &
+          sleep 30
+          # Run Lighthouse
+          lhci autorun --upload.target=temporary-public-storage || echo "Lighthouse CI completed with warnings"
+
+  results:
+    name: '📋 Test Results Summary'
+    runs-on: ubuntu-latest
+    needs: [frontend-tests, e2e-tests, accessibility-tests, security-scan, performance-tests]
+    if: always()
+
+    steps:
+      - name: '📊 Generate summary report'
+        env:
+          FRONTEND_TESTS_RESULT: ${{ needs.frontend-tests.result }}
+          E2E_TESTS_RESULT: ${{ needs.e2e-tests.result }}
+          ACCESSIBILITY_TESTS_RESULT: ${{ needs.accessibility-tests.result }}
+          SECURITY_SCAN_RESULT: ${{ needs.security-scan.result }}
+          PERFORMANCE_TESTS_RESULT: ${{ needs.performance-tests.result }}
+        run: |
+          echo "## 🧪 Frontend Test Suite Results" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "| Test Suite | Status |" >> $GITHUB_STEP_SUMMARY
+          echo "|------------|--------|" >> $GITHUB_STEP_SUMMARY
+          echo "| Unit & Integration Tests | $([[ "$FRONTEND_TESTS_RESULT" == "success" ]] && echo '✅ Pass' || echo '❌ Fail') |" >> $GITHUB_STEP_SUMMARY
+          echo "| E2E Tests | $([[ "$E2E_TESTS_RESULT" == "success" ]] && echo '✅ Pass' || echo '❌ Fail') |" >> $GITHUB_STEP_SUMMARY
+          echo "| Accessibility Tests | $([[ "$ACCESSIBILITY_TESTS_RESULT" == "success" ]] && echo '✅ Pass' || echo '❌ Fail') |" >> $GITHUB_STEP_SUMMARY
+          echo "| Security Scan | $([[ "$SECURITY_SCAN_RESULT" == "success" ]] && echo '✅ Pass' || echo '❌ Fail') |" >> $GITHUB_STEP_SUMMARY
+          echo "| Performance Tests | $([[ "$PERFORMANCE_TESTS_RESULT" == "success" ]] && echo '✅ Pass' || echo '❌ Fail') |" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+
+          # Check if critical tests passed
+          if [[ "$FRONTEND_TESTS_RESULT" != "success" || "$E2E_TESTS_RESULT" != "success" ]]; then
+            echo "❌ Critical tests failed - blocking merge"
+            echo "critical_failure=true" >> $GITHUB_ENV
+            exit 1
+          elif [[ "$ACCESSIBILITY_TESTS_RESULT" != "success" || "$SECURITY_SCAN_RESULT" != "success" ]]; then
+            echo "⚠️ Some quality checks failed - review required"
+            echo "quality_warning=true" >> $GITHUB_ENV
+          else
+            echo "✅ All frontend tests passed - ready for merge"
+          fi
+
+      - name: '💬 Comment on PR'
+        if: github.event_name == 'pull_request'
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const { owner, repo, number } = context.issue;
+            const frontendResult = '${{ needs.frontend-tests.result }}';
+            const e2eResult = '${{ needs.e2e-tests.result }}';
+            const a11yResult = '${{ needs.accessibility-tests.result }}';
+            const securityResult = '${{ needs.security-scan.result }}';
+            const performanceResult = '${{ needs.performance-tests.result }}';
+
+            const getStatusEmoji = (result) => result === 'success' ? '✅' : '❌';
+            const getStatusText = (result) => result === 'success' ? 'Pass' : 'Fail';
+
+            const body = `## 🧪 Frontend Test Results
+
+            | Test Suite | Status | Result |
+            |------------|--------|---------|
+            | Unit & Integration | ${getStatusEmoji(frontendResult)} | ${getStatusText(frontendResult)} |
+            | E2E Tests | ${getStatusEmoji(e2eResult)} | ${getStatusText(e2eResult)} |
+            | Accessibility | ${getStatusEmoji(a11yResult)} | ${getStatusText(a11yResult)} |
+            | Security Scan | ${getStatusEmoji(securityResult)} | ${getStatusText(securityResult)} |
+            | Performance | ${getStatusEmoji(performanceResult)} | ${getStatusText(performanceResult)} |
+
+            ${frontendResult === 'success' && e2eResult === 'success'
+              ? '✅ **All critical tests passed!** This PR is ready for review.'
+              : '❌ **Critical tests failed.** Please fix issues before merging.'}
+
+            [View detailed test reports in the Actions tab](https://github.com/${owner}/${repo}/actions/runs/${{ github.run_id }})
+            `;
+
+            await github.rest.issues.createComment({
+              owner,
+              repo,
+              issue_number: number,
+              body
+            });

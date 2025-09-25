@@ -1,0 +1,91 @@
+coverage:
+  range: "70..100"
+  round: down
+  precision: 2
+
+  status:
+    project:
+      default:
+        target: 70%
+        threshold: 1%
+        base: auto
+        informational: false
+
+    patch:
+      default:
+        target: 75%
+        threshold: 5%
+        base: auto
+        only_pulls: true
+
+  ignore:
+    - "src/app/**/*.tsx"  # App router pages
+    - "src/app/**/layout.tsx"
+    - "src/app/**/loading.tsx"
+    - "src/app/**/not-found.tsx"
+    - "src/app/**/error.tsx"
+    - "src/env.mjs"
+    - "src/middleware.ts"
+    - "**/*.d.ts"
+    - "**/*.config.*"
+    - "tests/**/*"
+    - "*.config.*"
+    - "next.config.*"
+    - "tailwind.config.*"
+    - "postcss.config.*"
+
+component_management:
+  default_rules:
+    statuses:
+      - type: project
+        target: 70%
+
+  individual_components:
+    - component_id: authentication
+      name: Authentication Components
+      paths:
+        - "src/components/auth/**/*"
+        - "src/app/api/auth/**/*"
+      statuses:
+        - type: project
+          target: 85%
+
+    - component_id: api-proxy
+      name: API Proxy
+      paths:
+        - "src/app/api/proxy/**/*"
+      statuses:
+        - type: project
+          target: 80%
+
+    - component_id: forms
+      name: Form Components
+      paths:
+        - "src/components/forms/**/*"
+      statuses:
+        - type: project
+          target: 80%
+
+    - component_id: ui-components
+      name: UI Components
+      paths:
+        - "src/components/ui/**/*"
+      statuses:
+        - type: project
+          target: 75%
+
+flags:
+  frontend:
+    paths:
+      - "src/"
+    carryforward: true
+
+comment:
+  layout: "header, diff, flags, components, footer"
+  behavior: default
+  require_changes: false
+  require_base: false
+  require_head: true
+
+github_checks:
+  annotations: true

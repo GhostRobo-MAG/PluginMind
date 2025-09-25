@@ -1,0 +1,36 @@
+// Custom hook for easy access to authentication context
+import { useAuthContext } from '@/contexts/auth.context'
+import { AuthContextType } from '@/types/auth'
+
+/**
+ * useAuth hook - provides access to authentication state and methods
+ * 
+ * @returns {AuthContextType} Authentication context with user state and methods
+ * 
+ * @example
+ * ```tsx
+ * function MyComponent() {
+ *   const { user, isAuthenticated, isLoading, signIn, signOut } = useAuth()
+ *   
+ *   if (isLoading) return <div>Loading...</div>
+ *   
+ *   return (
+ *     <div>
+ *       {isAuthenticated ? (
+ *         <div>
+ *           Welcome, {user?.name}!
+ *           <button onClick={signOut}>Sign Out</button>
+ *         </div>
+ *       ) : (
+ *         <button onClick={() => signIn({email, password})}>Sign In</button>
+ *       )}
+ *     </div>
+ *   )
+ * }
+ * ```
+ */
+export function useAuth(): AuthContextType {
+  return useAuthContext()
+}
+
+export default useAuth
